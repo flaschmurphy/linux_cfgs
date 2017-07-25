@@ -1,13 +1,13 @@
 set number
-set tabstop=4
 
 filetype plugin indent on
-" Show existing tab with 4 spaces width
-set tabstop=4
-" When indenting with '>', use 4 spaces width
-set shiftwidth=4
-" On pressing tab, insert 4 spaces
-set expandtab
+set tabstop=4       " The width of a TAB is set to 4.
+                    " Still it is a \t. It is just that
+                    " Vim will interpret it to be having
+                    " a width of 4.
+set shiftwidth=4    " Indents will have a width of 4.
+set softtabstop=4   " Sets the number of columns for a TAB.
+set expandtab       " Expand TABs to spaces.
 
 " Enable code folding using 'zc', 'za', 'zo'
 set foldmethod=indent   
