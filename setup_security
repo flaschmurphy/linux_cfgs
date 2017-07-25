@@ -1,0 +1,108 @@
+#!/bin/bash
+
+#
+# Enable basic security for Linux
+#
+# Does the following:
+#    o Enable automatic download and install of security related system updates
+#    o Run automatic installation of security updates right now
+#    o Backup and (re-)configure IP tables so that only incoming requests from internal networks are permitted
+# 
+# Tested on Ubuntu 16.04.02
+#
+# crmurphy, 25/07/17
+#
+
+set -u    # Die if trying to access variables that are undefined
+set -e    # Exit if any command has a non-zero return value
+
+DATE=$(date +"%Y%m%d%H%M%S")
+BKP_DIR="/var/backups/iptables"
+
+check_for_root() {
+    if [[ $EUID != 0 ]]; then
+        echo "Please try again using sudo or with root permissions."
+        exit 1
+    fi
+}
+
+setup_auto_update() {
+    apt install unattended-upgrades
+    echo
+    echo "In the screen the follows, select 'yes' followed by 'ok'."
+    printf "Press return to continue... "
+    read _
+    echo
+    
+    dpkg-reconfigure unattended-upgrades
+    unattended-upgrades
+}
+
+setup_iptables() {
+    # Backup current config
+    [[ -d ${BKP_DIR} ]] || mkdir ${BKP_DIR}
+    iptables-save > ${BKP_DIR}/ip4tables_bkup_${DATE}.txt
+    ip6tables-save > ${BKP_DIR}/ip6tables_bkup_${DATE}.txt
+    echo "Backed up current config to "${BKP_DIR}"/ip*tables_bkup_"${DATE}".txt" 
+    echo "Restore using 'iptables-restore' if needed"
+    
+    # Allow access from localhost to localhost
+    echo "Enabling access to/from localhost..."
+    iptables -A INPUT -i lo -j ACCEPT
+    
+    # Allow private IPv4 subnets
+    echo "Enabling access to/from private IPv4 networks..."
+    iptables -A INPUT -s 192.168.0.0/16 -j ACCEPT
+    iptables -A INPUT -s 10.0.0.0/8 -j ACCEPT
+    iptables -A INPUT -s 169.254.0.0/16 -j ACCEPT
+    iptables -A INPUT -s 172.16.0.0/12 -j ACCEPT
+    
+    # Allow traffic from already established connections
+    echo "Allowing traffic for established connections..."
+    iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    
+    # Block everything else. Note that the above rules come before the block
+    # and therefore take precedence 
+    echo "Blocking all other IPv4 traffic..."
+    iptables -A INPUT -j DROP
+    
+    # Block all IPv6 traffic. It's not used anywhere that I know of.
+    echo "Blocking all IPv6 traffic globally..."
+    ip6tables -A INPUT -j DROP
+    
+    # Setup logging to write to syslog on packet drop
+    echo "Enabling logging to syslog..."
+    iptables -I INPUT 5 -m limit --limit 5/min -j LOG --log-prefix "iptables denied: " --log-level 7
+
+    echo "Done."
+}
+
+main() {
+    check_for_root
+    echo
+    echo "This script will do 3 things:"
+    echo "    - Enable automatic installation of all security related system updates"
+    echo "    - Run the updates immediately"
+    echo "    - Backup and (re-)configure iptables so that only private (internal) IP addresses can connect" 
+    echo "       Note: assumes that no iptables rules are configured already. If there is an existing config"
+    echo "             there maybe unpredictable results."
+    printf "Continue? [y|n]: "
+
+    read yesno
+
+    if [[ $yesno == "y" ]]; then
+        setup_auto_update
+        setup_iptables
+
+    elif [[ $yesno == "n" ]]; then
+        echo "Ok. Nothing was changed."
+        exit
+    else
+        echo "Please enter either 'y' or 'n'."
+        echo "Nothing was changed."
+        exit
+    fi
+}
+
+main
+
