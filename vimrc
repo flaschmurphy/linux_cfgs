@@ -4,7 +4,7 @@
 
 " Pathogen related stuff
 filetype off
-call pathogen#runtime_append_all_bundles()
+call pathogen#infect()
 filetype plugin indent on
 
 " Don't need to be compatible with old vi

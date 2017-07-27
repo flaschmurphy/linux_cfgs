@@ -6,7 +6,8 @@
 # Does the following:
 #    o Enable automatic download and install of security related system updates
 #    o Run automatic installation of security updates right now
-#    o Backup and (re-)configure IP tables so that only incoming requests from internal networks are permitted
+#    o Backup and (re-)configure IP tables so that only incoming requests from 
+#      internal networks are permitted
 # 
 # Tested on Ubuntu 16.04.02
 #
