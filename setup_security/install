@@ -111,7 +111,7 @@ main() {
         exit
     fi
 
-    cd ${ORIG_DIR}
+    cd ${ORIG_DIR} >/dev/null
 }
 
 main
