@@ -22,6 +22,28 @@ BKP_DIR="/var/backups/iptables"
 ORIG_DIR=$(pwd)
 SCRPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+
+print_exit() {
+    printf "\n${1}\n"
+    exit 1
+}
+
+
+get_user_input() {
+    # Ask the user for input, lower case it, and assign it to a supplied variable
+    #  $1 is the question to send to the users terminal
+    #  $2 is the default response if the user only presses return
+    #  $3 is the timeout for the question (will full exit on timeout)
+    #  $4 is the variable that stores the response for retrieval outside this func
+    #  $5 is the error to print to the screen if a timeout occurs
+    # Requires function print_exit()
+    read -t "$3" -p "$1" var || print_exit "$5"
+    var=${var:-$2}
+    var=$(echo ${var} | tr '[:upper:]' '[:lower:]')
+    eval $4=$var
+}
+
+
 check_for_root() {
     if [[ $EUID != 0 ]]; then
         echo "Please try again using sudo or with root permissions."
@@ -29,17 +51,18 @@ check_for_root() {
     fi
 }
 
+
 setup_auto_update() {
     apt install unattended-upgrades
     echo
     echo "In the screen the follows, select 'yes' followed by 'ok'."
-    printf "Press return to continue... "
-    read _
+    read -p "Press return to continue... "
     echo
     
     dpkg-reconfigure unattended-upgrades
     unattended-upgrades
 }
+
 
 setup_iptables() {
     # Backup current config
@@ -87,14 +110,15 @@ main() {
 
     echo
     echo "This script will do 3 things:"
-    echo "    - Enable automatic installation of all security related system updates"
+    echo "    - Enable automatic installation of security related system updates"
     echo "    - Run the updates immediately"
-    echo "    - Backup and (re-)configure iptables so that only private (internal) IP addresses can connect" 
-    echo "       Note: assumes that no iptables rules are configured already. If there is an existing config"
-    echo "             there maybe unpredictable results."
-    printf "Continue? [y|n]: "
-
-    read yesno
+    echo "    - Backup and (re-)configure iptables so that only private (internal)"
+    echo "      IP addresses can initiate inbound connections NOTE: assumes that no" 
+    echo "      iptables rules are configured already. If there is an existing"
+    echo "      config there maybe unpredictable results."
+    echo
+    yesno=
+    get_user_input "Continue? [Y|n]: "  "y" 15 yesno "Timeout occured. Exiting."
 
     if [[ $yesno == "y" ]]; then
         setup_auto_update
