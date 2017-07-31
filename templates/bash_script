@@ -16,7 +16,7 @@ main() {
 
     # Main logic goes here
 
-    cd ${ORIG_DIR}
+    cd ${ORIG_DIR} >/dev/null
 }
 
 main

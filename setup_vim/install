@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 # Install script for vim plugins
 #
@@ -9,11 +11,16 @@ DATE=$(date +%Y%m%d%H%M%S)
 ORIG_DIR=$(pwd)
 SCRPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+check_version() {
+    version=$(vi --version | head -1 | sed 's/.*IMproved \([^ ]\).*/\1/')
+    [[ ${version} -eq 8 ]] || echo 'WARNING: vim version 7 detected, consider upgrading'
+}
+
 install_vimrc() {
     # Backup and install .vimrc
     if [[ -f ~/.vimrc ]]; then
-        cp ~/.vimrc ~/.vimrc_$(DATE)
-        echo 'Backed up current .vimrc file to ~/.vimrc_DATETIME'
+        cp ~/.vimrc ~/.vimrc_${DATE}
+        echo "Backed up current .vimrc file to ~/.vimrc_${DATE}"
     fi
     cp vimrc ~/.vimrc
     HOME=~
@@ -34,7 +41,7 @@ install_delimitmate() {
     echo 'Installing Delimitmate (if not alread installed)...'
     cd ~/.vim/bundle
     [[ -d delimitMate ]] || git clone https://github.com/Raimondi/delimitMate.git
-    cd -
+    cd - >/dev/null
 }
 
 
@@ -42,12 +49,13 @@ main() {
 
     cd $SCRPT_DIR
 
+    check_version
     install_vimrc
     install_pathogen
     install_delimitmate
 
     echo 'Done.'
-    cd $ORIG_DIR
+    cd $ORIG_DIR >/dev/null
 }
 
 main
