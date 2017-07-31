@@ -19,6 +19,8 @@ set -e    # Exit if any command has a non-zero return value
 
 DATE=$(date +"%Y%m%d%H%M%S")
 BKP_DIR="/var/backups/iptables"
+ORIG_DIR=$(pwd)
+SCRPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 check_for_root() {
     if [[ $EUID != 0 ]]; then
@@ -80,6 +82,9 @@ setup_iptables() {
 
 main() {
     check_for_root
+
+    cd ${SCRPT_DIR}
+
     echo
     echo "This script will do 3 things:"
     echo "    - Enable automatic installation of all security related system updates"
@@ -97,12 +102,16 @@ main() {
 
     elif [[ $yesno == "n" ]]; then
         echo "Ok. Nothing was changed."
+        cd ${ORIG_DIR}
         exit
     else
         echo "Please enter either 'y' or 'n'."
         echo "Nothing was changed."
+        cd ${ORIG_DIR}
         exit
     fi
+
+    cd ${ORIG_DIR}
 }
 
 main
