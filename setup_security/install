@@ -2,26 +2,30 @@
 
 #
 # Enable basic security for Linux
+# 
+# This script by no means provides comprehensive security coverage, but hopefully covers 
+# the majority of the basics for a build server. For a web server (Apache or otherwise) additional
+# steps should be taken.
 #
-# Does the following:
+# The script does the following:
 #    o Enable automatic download and install of security related system updates
 #    o Run automatic installation of security updates right now
 #    o Backup and (re-)configure IP tables so that only incoming requests from 
 #      internal networks are permitted
 # 
-# Tested on Ubuntu 16.04.02
+# Inplemented on Ubuntu 16.04.02
 #
 # crmurphy, 25/07/17
 #
 
 set -u    # Die if trying to access variables that are undefined
-set -e    # Exit if any command has a non-zero return value
+set -e    # Die if any command has a non-zero return value
 
 DATE=$(date +"%Y%m%d%H%M%S")
-BKP_DIR="/var/backups/iptables"
+BKP_DIR="/var/backups"
 ORIG_DIR=$(pwd)
 SCRPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
+REBOOT_REQUIRED=0
 
 print_exit() {
     printf "\n${1}\n"
@@ -58,18 +62,24 @@ setup_auto_update() {
     echo "In the screen the follows, select 'yes' followed by 'ok'."
     read -p "Press return to continue... "
     echo
+
+    #@TODO: Add email notification by editing this file: /etc/apt/apt.conf.d/50unattended-upgrades
+    #       and adding the line 'Unattended-Upgrade::Mail "ciaran.r.murphy@intel.com";'
     
     dpkg-reconfigure unattended-upgrades
     unattended-upgrades
+
+    echo "Done setting up unattended-upgrades."
 }
 
 
 setup_iptables() {
     # Backup current config
-    [[ -d ${BKP_DIR} ]] || mkdir ${BKP_DIR}
-    iptables-save > ${BKP_DIR}/ip4tables_bkup_${DATE}.txt
-    ip6tables-save > ${BKP_DIR}/ip6tables_bkup_${DATE}.txt
-    echo "Backed up current config to "${BKP_DIR}"/ip*tables_bkup_"${DATE}".txt" 
+    iptables_bkp_root=${BKP_DIR}/iptables
+    [[ -d ${iptables_bkp_root} ]] || mkdir ${iptables_bkp_root}
+    iptables-save > ${iptables_bkp_root}/ip4tables_bkup_${DATE}.txt
+    ip6tables-save > ${iptables_bkp_root}/ip6tables_bkup_${DATE}.txt
+    echo "Backed up current config to "${iptables_bkp_root}"/ip*tables_bkup_"${DATE}".txt" 
     echo "Restore using 'iptables-restore' if needed"
     
     # Allow access from localhost to localhost
@@ -100,8 +110,39 @@ setup_iptables() {
     echo "Enabling logging to syslog..."
     iptables -I INPUT 5 -m limit --limit 5/min -j LOG --log-prefix "iptables denied: " --log-level 7
 
-    echo "Done."
+    echo "Done setting up iptables."
 }
+
+
+setup_fstab() {
+    # Add options for tmpfs to secure it
+    fstab_bkp_root=${BKP_DIR}/fstab 
+    [[ -d ${fstab_bkp_root} ]] || mkdir ${fstab_bkp_root}
+    cp /etc/fstab ${fstab_bkp_root}/fstab_bkp_${DATE}
+    echo "Backed up fstab to "${fstab_bkp_root}"/fstab_bkp_"${DATE}
+    echo "tmpfs     /run/shm     tmpfs     defaults,noexec,nosuid     0     0" >> /etc/fstab
+    REBOOT_REQUIRED=1
+    echo "Done setting up fstab."
+}
+
+
+setup_no_direct_root() {
+    # Disable direct root login over ssh
+    current_setting=$(grep "^PermitRootLogin" /etc/ssh/sshd_config | awk '{print $2}')
+    if [[ $current_setting == 'no' ]]; then
+        echo "Direct root access is already disabled. Nothing more to do."
+    else
+        [[ -d ${BKP_DIR}/sshd_config ]] || mkdir ${BKP_DIR}/sshd_config
+        cp /etc/ssh/sshd_config ${BKP_DIR}/sshd_config/ssh_config_${DATE}
+        echo "Backed up sshd_config to: "${BKP_DIR}"/sshd_config/ssh_config_"${DATE}
+        tmp_file=$(mktemp)
+        cat /etc/ssh/sshd_config | sed 's/^PermitRootLogin .*/PermitRootLogin no/' > $tmp_file
+        mv $tmp_file /etc/ssh/sshd_config
+        service ssh restart
+        echo "Done setting up sshd_config."
+    fi
+}
+
 
 main() {
     check_for_root
@@ -116,6 +157,8 @@ main() {
     echo "      IP addresses can initiate inbound connections NOTE: assumes that no" 
     echo "      iptables rules are configured already. If there is an existing"
     echo "      config there maybe unpredictable results."
+    echo "    - Backup then modify /etc/fstab to add 'defaults,noexec,nosuid' to tmpfs"
+    echo "    - Disable direct root login over ssh"
     echo
     yesno=
     get_user_input "Continue? [Y|n]: "  "y" 15 yesno "Timeout occured. Exiting."
@@ -123,6 +166,8 @@ main() {
     if [[ $yesno == "y" ]]; then
         setup_auto_update
         setup_iptables
+        setup_fstab
+        setup_no_direct_root
 
     elif [[ $yesno == "n" ]]; then
         echo "Ok. Nothing was changed."
@@ -135,7 +180,16 @@ main() {
         exit
     fi
 
-    cd ${ORIG_DIR} >/dev/null
+    yesno=
+    echo ""
+    [[ ${REBOOT_REQUIRED} -eq 1 ]] && get_user_input "A reboot is required. Reboot now? [Y|n]: " \
+        "y" 15 yesno "Timeout occured. Please reboot asap."
+    if [[ $yesno == "y" ]]; then
+        reboot
+    else
+        echo "Please reboot asap. Done with setup."
+        cd ${ORIG_DIR} >/dev/null
+    fi
 }
 
 main
