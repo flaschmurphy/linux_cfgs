@@ -24,6 +24,7 @@ set softtabstop=4   " Sets the number of columns for a TAB.
 set expandtab       " Expand TABs to spaces.
 
 " Misc
+syntax on
 set encoding=utf-8
 set scrolloff=3
 set autoindent
