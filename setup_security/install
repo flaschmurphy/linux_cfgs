@@ -2,17 +2,19 @@
 
 #
 # Enable basic security for Linux
-# 
-# This script by no means provides comprehensive security coverage, but hopefully covers 
+#
+# This script by no means provides comprehensive security coverage, but hopefully covers
 # the majority of the basics for a build server. For a web server (Apache or otherwise) additional
 # steps should be taken.
 #
 # The script does the following:
 #    o Enable automatic download and install of security related system updates
 #    o Run automatic installation of security updates right now
-#    o Backup and (re-)configure IP tables so that only incoming requests from 
+#    o Backup and (re-)configure IP Tables so that only incoming requests from
 #      internal networks are permitted
-# 
+#    o Disable direct root access via SSH
+#    o Make tmpfs secure
+#
 # Inplemented on Ubuntu 16.04.02
 #
 # crmurphy, 25/07/17
@@ -34,7 +36,8 @@ print_exit() {
 
 
 get_user_input() {
-    # Ask the user for input, lower case it, and assign it to a supplied variable
+    # Ask the user for input, lower case it, and assign it to a supplied variable. Timeout if no response
+    # from the user.
     #  $1 is the question to send to the users terminal
     #  $2 is the default response if the user only presses return
     #  $3 is the timeout for the question (will full exit on timeout)
@@ -62,12 +65,33 @@ setup_auto_update() {
     echo "In the screen the follows, select 'yes' followed by 'ok'."
     read -p "Press return to continue... "
     echo
-
-    #@TODO: Add email notification by editing this file: /etc/apt/apt.conf.d/50unattended-upgrades
-    #       and adding the line 'Unattended-Upgrade::Mail "ciaran.r.murphy@intel.com";'
-    
     dpkg-reconfigure unattended-upgrades
     unattended-upgrades
+
+    default=${SUDO_USER}@localhost
+    email=
+    get_user_input "Occasionally a reboot is needed after the installation of security 
+patches. Enter an email address that will receive status notifications: " ${default} 60 email \
+    "Timeout occured waiting for input. Will attempt to send mails to ${default}."
+
+    echo ""
+    
+    # Hack to workaround issues with the @ symbol in bash condition tests
+    __t1=${email/@/__}
+    __t2=${default/@/__}
+    if [[ ${__t1} == ${__t2} ]]; then
+        echo "Email address for security update notifications will be: ${default}"
+    fi
+
+    dst=${BKP_DIR}/unattended-upgrades
+    [[ -d ${dst} ]] || mkdir ${dst}
+    cat /etc/apt/apt.conf.d/50unattended-upgrades > ${dst}/50unattended-upgrades_${DATE}
+    echo "Backed up /etc/apt/apt.conf.d/50unattended-upgrades to ${dst}/50unattended-upgrades_${DATE}"
+
+    tmp_file=$(mktemp)
+    cat /etc/apt/apt.conf.d/50unattended-upgrades | grep -v '^Unattended-Upgrade::Mail' > ${tmp_file}
+    echo 'Unattended-Upgrade::Mail "'$email'";' >> ${tmp_file}
+    cat ${tmp_file} > /etc/apt/apt.conf.d/50unattended-upgrades
 
     echo "Done setting up unattended-upgrades."
 }
@@ -79,33 +103,33 @@ setup_iptables() {
     [[ -d ${iptables_bkp_root} ]] || mkdir ${iptables_bkp_root}
     iptables-save > ${iptables_bkp_root}/ip4tables_bkup_${DATE}.txt
     ip6tables-save > ${iptables_bkp_root}/ip6tables_bkup_${DATE}.txt
-    echo "Backed up current config to "${iptables_bkp_root}"/ip*tables_bkup_"${DATE}".txt" 
+    echo "Backed up current config to "${iptables_bkp_root}"/ip*tables_bkup_"${DATE}".txt"
     echo "Restore using 'iptables-restore' if needed"
-    
+   
     # Allow access from localhost to localhost
     echo "Enabling access to/from localhost..."
     iptables -A INPUT -i lo -j ACCEPT
-    
+   
     # Allow private IPv4 subnets
     echo "Enabling access to/from private IPv4 networks..."
     iptables -A INPUT -s 192.168.0.0/16 -j ACCEPT
     iptables -A INPUT -s 10.0.0.0/8 -j ACCEPT
     iptables -A INPUT -s 169.254.0.0/16 -j ACCEPT
     iptables -A INPUT -s 172.16.0.0/12 -j ACCEPT
-    
+   
     # Allow traffic from already established connections
     echo "Allowing traffic for established connections..."
     iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    
+   
     # Block everything else. Note that the above rules come before the block
-    # and therefore take precedence 
+    # and therefore take precedence
     echo "Blocking all other IPv4 traffic..."
     iptables -A INPUT -j DROP
-    
+   
     # Block all IPv6 traffic. It's not used anywhere that I know of.
     echo "Blocking all IPv6 traffic globally..."
     ip6tables -A INPUT -j DROP
-    
+   
     # Setup logging to write to syslog on packet drop
     echo "Enabling logging to syslog..."
     iptables -I INPUT 5 -m limit --limit 5/min -j LOG --log-prefix "iptables denied: " --log-level 7
@@ -116,7 +140,7 @@ setup_iptables() {
 
 setup_fstab() {
     # Add options for tmpfs to secure it
-    fstab_bkp_root=${BKP_DIR}/fstab 
+    fstab_bkp_root=${BKP_DIR}/fstab
     [[ -d ${fstab_bkp_root} ]] || mkdir ${fstab_bkp_root}
     cp /etc/fstab ${fstab_bkp_root}/fstab_bkp_${DATE}
     echo "Backed up fstab to "${fstab_bkp_root}"/fstab_bkp_"${DATE}
@@ -137,7 +161,7 @@ setup_no_direct_root() {
         echo "Backed up sshd_config to: "${BKP_DIR}"/sshd_config/ssh_config_"${DATE}
         tmp_file=$(mktemp)
         cat /etc/ssh/sshd_config | sed 's/^PermitRootLogin .*/PermitRootLogin no/' > $tmp_file
-        mv $tmp_file /etc/ssh/sshd_config
+        cat $tmp_file > /etc/ssh/sshd_config
         service ssh restart
         echo "Done setting up sshd_config."
     fi
@@ -150,11 +174,11 @@ main() {
     cd ${SCRPT_DIR}
 
     echo
-    echo "This script will do 3 things:"
+    echo "This script will do the following:"
     echo "    - Enable automatic installation of security related system updates"
     echo "    - Run the updates immediately"
     echo "    - Backup and (re-)configure iptables so that only private (internal)"
-    echo "      IP addresses can initiate inbound connections NOTE: assumes that no" 
+    echo "      IP addresses can initiate inbound connections NOTE: assumes that no"
     echo "      iptables rules are configured already. If there is an existing"
     echo "      config there maybe unpredictable results."
     echo "    - Backup then modify /etc/fstab to add 'defaults,noexec,nosuid' to tmpfs"
