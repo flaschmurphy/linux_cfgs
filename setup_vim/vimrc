@@ -34,14 +34,14 @@ set hidden
 set wildmenu
 set wildmode=list:longest
 set visualbell
-set cursorline
+" set cursorline
 set ttyfast
 set ruler
 set backspace=indent,eol,start
 set laststatus=2
 
 " Show line numbers relative to cursor rather than absolute
-set relativenumber
+set number relativenumber
 
 " Enable undo even after a file has been closed
 set undofile
@@ -70,7 +70,7 @@ set foldlevel=2
 set wrap
 set textwidth=79
 set formatoptions=qrn1
-set colorcolumn=85
+" set colorcolumn=85
 
 " Hardcore vim - disable bad key habits
 nnoremap <up> <nop>
@@ -92,5 +92,10 @@ vnoremap <F1> <ESC>
 " Enable auto-save if you alt-tab away from the vim window
 au FocusLost * :wa
 
+" highlight test that goes over 80 cols
+highlight OverLength ctermbg=red ctermfg=white guibg=#592929
+match OverLength /\%81v.\+/
 
-
+" configure spell checker but disable it by default
+setlocal spell spelllang=en_us
+set nospell 
