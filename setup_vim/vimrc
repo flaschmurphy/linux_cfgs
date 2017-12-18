@@ -10,7 +10,7 @@ filetype plugin indent on
 " Don't need to be compatible with old vi
 set nocompatible
 
-" Security related. I don't use modelines in anycase.
+" Security related. Don't ask.
 set modelines=0
 
 " Indent related stuff
@@ -33,7 +33,7 @@ set hidden
 set wildmenu
 set wildmode=list:longest
 set visualbell
-" set cursorline
+set cursorline
 set ttyfast
 set ruler
 set backspace=indent,eol,start
@@ -41,6 +41,7 @@ set laststatus=2
 
 " Show line numbers relative to cursor rather than absolute
 set number relativenumber
+set number
 
 " Enable undo even after a file has been closed
 set undofile
@@ -69,12 +70,12 @@ set foldlevel=2
 set wrap
 set textwidth=79
 set formatoptions=qrn1
-highlight ColorColumn ctermbg=gray
-set colorcolumn=120
+"highlight ColorColumn ctermbg=gray
+"set colorcolumn=120
 " highlight text that goes over 80 cols. 'cterbg' can be used to also set the
 " background, but I'm not doing that here. Just set the text to orange is all.
 highlight OverLength ctermfg=208 guibg=#FFD9D9
-match OverLength /\%81v.\+/
+match OverLength /\%121v.\+/
 
 " Hardcore vim - disable bad key habits
 nnoremap <up> <nop>
@@ -99,4 +100,31 @@ au FocusLost * :wa
 " configure spell checker but disable it by default
 setlocal spell spelllang=en_us
 set nospell 
+
+" Easier folding 
+set foldmethod=indent
+nnoremap <space> za
+vnoremap <space> zf
+
+" Easier switching between windows, instead of Ctrl-W + j, just Ctrl-j
+nnoremap <C-J> <C-W><C-J>
+nnoremap <C-K> <C-W><C-K>
+nnoremap <C-L> <C-W><C-L>
+nnoremap <C-H> <C-W><C-H>
+
+" Open new windows to right and bottom instead of left and top
+set splitbelow
+set splitright
+
+"Max out the height of the current split
+"ctrl + w _
+
+"Max out the width of the current split
+"ctrl + w |
+
+"Normalize all split sizes, which is very handy when resizing terminal
+"ctrl + w =
+
+" Set a color for folds that's less deafening
+hi Folded ctermbg=242
 
