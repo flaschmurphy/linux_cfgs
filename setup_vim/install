@@ -44,6 +44,14 @@ install_delimitmate() {
     cd - >/dev/null
 }
 
+install_nerdtree() {
+    # Install nerdtree
+    echo 'Installing NerdTree (if not alread installed)...'
+    cd ~/.vim/bundle
+    [[ -d nerdtree ]] || git clone https://github.com/scrooloose/nerdtree.git
+    cd - >/dev/null
+}
+
 
 main() {
 
