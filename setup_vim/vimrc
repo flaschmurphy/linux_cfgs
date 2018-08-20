@@ -128,3 +128,5 @@ set splitright
 " Set a color for folds that's less deafening
 hi Folded ctermbg=242
 
+" Ctrl + n to toggle NERDTree
+map <C-n> :NERDTreeToggle<CR>
