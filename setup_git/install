@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# As an alternative to the shell prompt customizations, check out https://github.com/Bash-it/bash-it/wiki/Themes
+
 configure_git() {
 	git config --global diff.algorithm patience	  # Make git-diff's diffs better.
 	git config --global rebase.autostash true	  # Automatically stash before rebasing, pulling, etc. and then unstash afterward.
