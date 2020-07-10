@@ -13,6 +13,7 @@ configure_git() {
 }
 
 configure_shell() {
+    # git-prompt.sh is credited to https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh
     cp ./git-prompt.sh ~/.git-prompt.sh
     cat ./bashrc_additions.sh >> ~/.bashrc
 }
