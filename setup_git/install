@@ -1,0 +1,25 @@
+#!/bin/bash
+
+configure_git() {
+	git config --global diff.algorithm patience	  # Make git-diff's diffs better.
+	git config --global rebase.autostash true	  # Automatically stash before rebasing, pulling, etc. and then unstash afterward.
+	git config --global rebase.autosquash true	  # Automatically reorder steps in git rebase -i after using git commit --squash or git commit --fixup
+	git config --global fetch.prune true	      # Automatically prune old remote-tracking branches with every fetch.
+	git config --global pull.rebase true	      # When pulling, rebase on the remote instead of merging.
+	git config --global submodule.recurse true    # Automatically check out submodules too when checking out a branch (and fetch submodules when fetching, etc.).
+	git config --global merge.conflictstyle diff3 #	When there's a merge conflict, put in the code from both branches and also from the parent commit.
+	git config --global log.mailmap true          # Reformat committers' names and e-mails based on the .mailmap file.
+	git config --global rerere.enabled true	      # Enable git-rerere, which allows you to reuse recorded resolutions to merge conflicts.
+}
+
+configure_shell() {
+    cp ./git-prompt.sh ~/.git-prompt.sh
+    cat ./bashrc_additions.sh >> ~/.bashrc
+}
+
+main() {
+    configure_git
+    configure_shell
+}
+
+main
