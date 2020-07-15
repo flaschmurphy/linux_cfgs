@@ -21,8 +21,11 @@ configure_shell() {
 }
 
 main() {
+    echo "Configuring git..."
     configure_git
+    echo "Configuring shell..."
     configure_shell
+    echo "Done."
 }
 
 main
