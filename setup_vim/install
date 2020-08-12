@@ -5,7 +5,7 @@
 #
 
 set -u    # Die if trying to access variables that are undefined
-set -e    # Exit if any command has a non-zero return value
+set -e    # Die if any command has a non-zero return value
 
 DATE=$(date +%Y%m%d%H%M%S)
 ORIG_DIR=$(pwd)
