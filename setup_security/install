@@ -53,7 +53,7 @@ get_user_input() {
 
 check_for_root() {
     if [[ $EUID != 0 ]]; then
-        echo "Please try again using sudo or with root permissions."
+        echo "Please try again with root permissions, e.g. using sudo."
         exit 1
     fi
 }
