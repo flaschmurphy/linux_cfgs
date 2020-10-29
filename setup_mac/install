@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Install Brew
+echo "Installing Brew...
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+echo "Done."
+
+# Install various things
+echo "Installing various packages..."
+brew install bash
+brew install tmux
+brew install htop
+brew install vim
+brew install tree
+brew install git
+echo "Done."
+
+#  Make Bash the default shell. Note that this failed on a mac I was setting up due to permissions, so might have to be done manually
+echo "Making bash the defailt shell..."
+sudo echo $(which bash) >> /etc/shells
+echo
+echo "NOTE: Bash has been added to the shells file (if the last command was successful), but you will need to make it your default shell in the iTerm preferences window."
+echo
+echo "Done."
+
+# Create a bash profile
+echo "Creating a bash_profile if there isn't one..."
+if [ ! -f ~/.bash_profile ] then
+    touch ~/.bash_profile
+fi
+echo "Done."
