@@ -12,6 +12,8 @@ configure_git() {
 	git config --global merge.conflictstyle diff3 #	When there's a merge conflict, put in the code from both branches and also from the parent commit.
 	git config --global log.mailmap true          # Reformat committers' names and e-mails based on the .mailmap file.
 	git config --global rerere.enabled true	      # Enable git-rerere, which allows you to reuse recorded resolutions to merge conflicts.
+    git config --global user.name "Ciaran Murphy"
+    git config --global user.email "cmur@pm.me"
 }
 
 configure_shell() {
