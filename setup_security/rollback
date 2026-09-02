@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# Restore the most recent backups created by setup_security/install.
+#
+
+set -euo pipefail
+IFS=$'\n\t'
+
+BKP_DIR="/var/backups"
+SECURITY_SSH_DROPIN="${SECURITY_SSH_DROPIN:-/etc/ssh/sshd_config.d/99-linux-cfgs-hardening.conf}"
+SECURITY_STAMP_FILE="${SECURITY_STAMP_FILE:-/var/lib/linux-cfgs-security-applied}"
+
+die() {
+    printf 'ERROR: %s\n' "$*" >&2
+    exit 1
+}
+
+check_for_root() {
+    [[ ${EUID} -eq 0 ]] || die "Run as root, e.g. sudo ./rollback"
+}
+
+latest_backup() {
+    local dir=$1
+    local pattern=$2
+    ls -1t "${dir}"/${pattern} 2>/dev/null | head -1
+}
+
+restore_file() {
+    local latest=$1
+    local dest=$2
+    [[ -n ${latest} && -f ${latest} ]] || return 0
+    cp -a "${latest}" "${dest}"
+    printf 'Restored %s from %s\n' "${dest}" "${latest}"
+}
+
+reload_sshd() {
+    if systemctl list-units --type=service --all 2>/dev/null | grep -q 'ssh\.service'; then
+        systemctl reload ssh
+    elif systemctl list-units --type=service --all 2>/dev/null | grep -q 'sshd\.service'; then
+        systemctl reload sshd
+    fi
+}
+
+main() {
+    local latest
+
+    check_for_root
+
+    latest="$(latest_backup "${BKP_DIR}/iptables" 'ip4tables_bkup_*.txt')"
+    if [[ -n ${latest} ]]; then
+        iptables-restore < "${latest}"
+        printf 'Restored IPv4 iptables from %s\n' "${latest}"
+    fi
+
+    latest="$(latest_backup "${BKP_DIR}/iptables" 'ip6tables_bkup_*.txt')"
+    if [[ -n ${latest} ]]; then
+        ip6tables-restore < "${latest}"
+        printf 'Restored IPv6 ip6tables from %s\n' "${latest}"
+    fi
+
+    restore_file "$(latest_backup "${BKP_DIR}/fstab" 'fstab_bkp_*')" "/etc/fstab"
+    restore_file "$(latest_backup "${BKP_DIR}/sshd_config" 'ssh_config_*')" "/etc/ssh/sshd_config"
+    restore_file "$(latest_backup "${BKP_DIR}/unattended-upgrades" '50unattended-upgrades_*')" \
+        "/etc/apt/apt.conf.d/50unattended-upgrades"
+
+    rm -f /etc/apt/apt.conf.d/51-linux-cfgs-unattended-mail.conf
+    rm -f /etc/apt/apt.conf.d/20auto-upgrades
+    rm -f "${SECURITY_SSH_DROPIN}"
+    rm -f "${SECURITY_STAMP_FILE}"
+
+    reload_sshd
+    printf 'Removed linux_cfgs drop-in configs. Review firewall and reboot if needed.\n'
+}
+
+main "$@"
