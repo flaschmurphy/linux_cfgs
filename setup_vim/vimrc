@@ -103,6 +103,8 @@ set nospell
 
 " Easier folding 
 set foldmethod=indent
+set foldnestmax=1
+set shiftwidth=4
 nnoremap <space> za
 vnoremap <space> zf
 
